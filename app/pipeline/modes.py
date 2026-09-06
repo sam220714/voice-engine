@@ -20,7 +20,9 @@ MODES: dict[str, Mode] = {
         format_rules=(
             "- Output ONLY the cleaned transcript, as plain prose.\n"
             "- Do NOT wrap the output in quotes or markdown.\n"
-            "- Do NOT shorten or summarize — keep every point, just cleaned up."
+            "- Do NOT shorten or summarize — keep every point, just cleaned up.\n"
+            "- Do NOT omit or substitute any specific numbers, names, or version "
+            "identifiers (e.g. \"5 hours\", \"Gemma 4\") — copy them exactly as heard."
         ),
         example_input="um so like i think we should uh go with option two right",
         example_output="I think we should go with option two.",
