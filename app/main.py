@@ -4,10 +4,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.pipeline.modes import DEFAULT_MODE, MODES
 from app.pipeline.orchestrator import Pipeline
 
 pipeline = Pipeline()
@@ -57,12 +58,33 @@ async def transcribe(file: UploadFile = File(...)):
     }
 
 
+@app.get("/modes")
+def list_modes():
+    """All available `/process` modes and what each one does."""
+    return {name: mode.description for name, mode in MODES.items()}
+
+
 @app.post("/process")
-async def process(file: UploadFile = File(...), instruction: Optional[str] = Form(None)):
-    """Full pipeline: audio -> Whisper transcript -> Gemma processing."""
+async def process(
+    file: UploadFile = File(...),
+    mode: str = Query(DEFAULT_MODE, description=f"One of: {', '.join(MODES)}"),
+    instruction: Optional[str] = Form(None),
+):
+    """Full pipeline: audio -> Whisper transcript -> Gemma processing.
+
+    `mode` selects a preset, tightly-constrained prompt (see GET /modes).
+    `instruction` optionally overrides just the core task text within that
+    mode's output-format rules.
+    """
+    if mode not in MODES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mode '{mode}'. Valid modes: {', '.join(MODES)}",
+        )
+
     audio_path = _save_upload(file)
     try:
-        result = pipeline.run(audio_path, instruction)
+        result = pipeline.run(audio_path, mode, instruction)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     finally:

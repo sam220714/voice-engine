@@ -13,8 +13,11 @@ Two stages, run sequentially — Stage 1's output is fed directly into Stage 2:
 1. **Stage 1 — Whisper STT** (`app/pipeline/stt.py`): transcribes audio with
    `faster-whisper` on GPU (CUDA, float16).
 2. **Stage 2 — Gemma LLM** (`app/pipeline/llm.py`): takes the raw transcript
-   and cleans it up (punctuation, grammar, filler-word removal) — or performs
-   whatever instruction is passed in — via a local Ollama model.
+   and runs it through one of several preset modes (`app/pipeline/modes.py`)
+   — clean up, summarize, extract action items, etc. — via a local Ollama
+   model. Each mode uses its own tightly constrained prompt (instruction
+   repeated at both ends, explicit "do NOT" rules, a worked example) since
+   small models like Gemma 4B drift off-format with looser instructions.
 
 The two stages are exposed through a FastAPI server (`app/main.py`).
 
@@ -52,19 +55,26 @@ The Whisper model loads once at startup (not per-request).
 ## API
 
 - `GET /health` — liveness check.
+- `GET /modes` — lists available `/process` modes and what each one does.
 - `POST /transcribe` — Stage 1 only. Upload an audio file (`file`), get back
   the raw transcript, detected language, and per-segment timestamps.
-- `POST /process` — full pipeline. Upload an audio file (`file`) and an
-  optional `instruction` form field to override what Stage 2 does with the
-  transcript (default: clean up punctuation/grammar and remove filler words).
-  Returns the raw transcript plus the LLM-processed output.
+- `POST /process` — full pipeline. Upload an audio file (`file`), optionally
+  pick a `mode` query param, and optionally pass an `instruction` form field
+  to override just the core task text within that mode's output-format
+  rules. Returns the raw transcript plus the LLM-processed output.
+
+  Modes:
+  - `clean` (default) — fix punctuation/grammar, remove filler words.
+  - `summary` — concise 2-3 sentence summary of what was discussed.
+  - `action_items` — bullet list of action items (or `None`).
+  - `decisions` — bullet list of decisions that were made (or `None`).
+  - `key_quotes` — notable quotes, copied verbatim (or `None`).
 
 Example:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/process \
-  -F "file=@Recording.m4a" \
-  -F "instruction=Summarize this transcript in one sentence."
+curl -X POST "http://127.0.0.1:8000/process?mode=action_items" \
+  -F "file=@Recording.m4a"
 ```
 
 ## Configuration
@@ -92,5 +102,6 @@ app/
   pipeline/
     stt.py             # Stage 1: Whisper STT
     llm.py             # Stage 2: Gemma LLM processing
+    modes.py           # /process mode presets (prompt + format rules + example per mode)
     orchestrator.py     # wires Stage 1 -> Stage 2 sequentially
 ```

@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from app.pipeline.llm import GemmaStage
+from app.pipeline.modes import DEFAULT_MODE
 from app.pipeline.stt import WhisperStage
 
 
@@ -15,9 +16,14 @@ class Pipeline:
     def warm_up(self) -> None:
         self.stt.load()
 
-    def run(self, audio_path: Union[str, Path], instruction: Optional[str] = None) -> dict:
+    def run(
+        self,
+        audio_path: Union[str, Path],
+        mode: str = DEFAULT_MODE,
+        instruction: Optional[str] = None,
+    ) -> dict:
         transcription = self.stt.transcribe(audio_path)
-        llm_output = self.llm.process(transcription.text, instruction)
+        llm_output = self.llm.process(transcription.text, mode, instruction)
 
         return {
             "transcript": transcription.text,
@@ -26,5 +32,6 @@ class Pipeline:
             "duration": transcription.duration,
             "stt_elapsed": transcription.elapsed,
             "segments": transcription.segments,
+            "mode": mode,
             "llm_output": llm_output,
         }
