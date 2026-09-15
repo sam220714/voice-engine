@@ -4,3 +4,8 @@ python-multipart
 faster-whisper
 ollama
 python-dotenv
+numpy
+scipy
+pywin32
+keyboard
+sounddevice

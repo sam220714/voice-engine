@@ -26,14 +26,15 @@ class TranscriptionResult:
 class WhisperStage:
     """Stage 1: speech-to-text via faster-whisper (CUDA)."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_size: Optional[str] = None) -> None:
         self._model: Optional[WhisperModel] = None
+        self._model_size = model_size or settings.whisper_model_size
 
     def load(self) -> None:
         if self._model is not None:
             return
         self._model = WhisperModel(
-            settings.whisper_model_size,
+            self._model_size,
             device=settings.whisper_device,
             compute_type=settings.whisper_compute_type,
         )

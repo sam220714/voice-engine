@@ -30,5 +30,11 @@ class Settings:
 
     upload_dir: Path = Path(os.getenv("UPLOAD_DIR", "uploads"))
 
+    # Dictation tool (app/dictation) — standalone hotkey-triggered dictation
+    dictation_hotkey: str = os.getenv("DICTATION_HOTKEY", "ctrl+alt+space")
+    dictation_whisper_model_size: str = os.getenv("DICTATION_WHISPER_MODEL_SIZE", "small")
+    dictation_sample_rate: int = int(os.getenv("DICTATION_SAMPLE_RATE", "16000"))
+    dictation_temp_dir: Path = Path(os.getenv("DICTATION_TEMP_DIR", "uploads/dictation"))
+
 
 settings = Settings()

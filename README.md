@@ -77,6 +77,34 @@ curl -X POST "http://127.0.0.1:8000/process?mode=action_items" \
   -F "file=@Recording.m4a"
 ```
 
+## Dictation tool
+
+`app/dictation` is a separate, standalone background tool — a WisprFlow-style
+hotkey dictation app. It is **not** part of the FastAPI server and runs as
+its own process. It is batch only — there is no live/streaming
+transcription; it records the whole clip, then transcribes it once.
+
+```bash
+python -m app.dictation.app
+```
+
+Press the hotkey (`ctrl+alt+space` by default) to start recording — a small
+red bar appears at the bottom of the screen. Press it again to stop; the
+bar turns amber while Whisper transcribes and Gemma (`clean` mode) tidies
+the result, then the cleaned text is automatically pasted into whatever
+text field currently has focus, in any application.
+
+Because cleanup runs through Gemma, **Ollama must be running** with the
+configured model pulled, same as the FastAPI server. Expect ~9-12 seconds
+of LLM latency on top of Whisper's transcription time (roughly 1-2 seconds
+for a short dictation clip, using the `small` model by default).
+
+Known limitations:
+- Per Windows UIPI, the synthetic paste can't reach a window running
+  elevated/as-Administrator unless this tool is also run elevated.
+- A hotkey press while a previous clip is still transcribing is ignored,
+  not queued — wait for the indicator to disappear before starting again.
+
 ## Configuration
 
 All settings are read from environment variables (see `.env.example`):
@@ -91,6 +119,10 @@ All settings are read from environment variables (see `.env.example`):
 | `OLLAMA_MODEL` | `gemma4:e4b` | Ollama model tag to use for Stage 2 |
 | `LLM_TEMPERATURE` | `0.1` | sampling temperature for Stage 2 |
 | `UPLOAD_DIR` | `uploads` | scratch dir for uploaded audio (cleaned up per-request) |
+| `DICTATION_HOTKEY` | `ctrl+alt+space` | global hotkey that toggles start/stop recording in `app/dictation` |
+| `DICTATION_WHISPER_MODEL_SIZE` | `small` | Whisper model size used by the dictation tool (independent of `WHISPER_MODEL_SIZE`) |
+| `DICTATION_SAMPLE_RATE` | `16000` | mic recording sample rate (Hz) for the dictation tool |
+| `DICTATION_TEMP_DIR` | `uploads/dictation` | scratch dir for dictation clips (deleted after each transcription) |
 
 ## Project layout
 
@@ -104,4 +136,11 @@ app/
     llm.py             # Stage 2: Gemma LLM processing
     modes.py           # /process mode presets (prompt + format rules + example per mode)
     orchestrator.py     # wires Stage 1 -> Stage 2 sequentially
+  dictation/            # standalone hotkey dictation tool (see "Dictation tool" above)
+    audio.py            # mic recording (sounddevice) to a temp WAV
+    hotkey.py            # global hotkey registration + synthetic paste (keyboard)
+    clipboard.py         # clipboard text (win32clipboard)
+    indicator.py          # floating recording/transcribing indicator (tkinter)
+    controller.py         # state machine wiring hotkey -> recorder -> Whisper/Gemma -> paste
+    app.py                # entry point: python -m app.dictation.app
 ```
