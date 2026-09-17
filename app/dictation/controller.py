@@ -48,7 +48,7 @@ class DictationController:
     def _transcribe_and_paste(self, wav_path: Path) -> None:
         try:
             transcription = self._stt.transcribe(wav_path)
-            cleaned = self._llm.process(transcription.text, mode="clean")
+            cleaned = self._llm.process(transcription.text, mode="clean_fast")
         finally:
             wav_path.unlink(missing_ok=True)
         self._queue.put(("result", cleaned))

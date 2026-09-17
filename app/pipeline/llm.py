@@ -1,3 +1,5 @@
+import json
+import re
 from typing import Optional
 
 import ollama
@@ -51,6 +53,48 @@ class GemmaStage:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": transcript},
             ],
+            format="json" if mode_cfg.is_diff else None,
             options={"temperature": settings.llm_temperature},
         )
-        return response["message"]["content"].strip()
+        raw = response["message"]["content"].strip()
+
+        if mode_cfg.is_diff:
+            return _apply_edits(transcript, raw)
+        return raw
+
+
+_NEGATION_PATTERN = re.compile(r"\b(?:not|never|no|none)\b|n't", re.IGNORECASE)
+
+
+def _negation_count(text: str) -> int:
+    return len(_NEGATION_PATTERN.findall(text))
+
+
+def _apply_edits(original: str, edits_json: str) -> str:
+    """Apply a JSON list of {"find", "replace"} edits to the original text.
+
+    Two independent safety nets, since a wrong edit here can silently corrupt
+    meaning rather than just fail loudly:
+    - Any edit whose "find" doesn't appear verbatim in the (still-being-edited)
+      text is skipped — the model occasionally paraphrases an anchor instead
+      of quoting it exactly.
+    - Any edit whose "replace" has a different count of negation words
+      ("not", "n't", "never", "no", "none") than its "find" is skipped —
+      the prompt forbids this, but a dropped/added negation flips the
+      sentence's meaning, so it's also enforced here rather than trusted.
+    """
+    try:
+        edits = json.loads(edits_json)
+    except json.JSONDecodeError:
+        return original
+
+    text = original
+    for edit in edits:
+        find = edit.get("find", "")
+        replace = edit.get("replace", "")
+        if not find or find not in text:
+            continue
+        if _negation_count(find) != _negation_count(replace):
+            continue
+        text = text.replace(find, replace, 1)
+    return text

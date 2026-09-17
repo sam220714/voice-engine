@@ -8,6 +8,7 @@ class Mode:
     format_rules: str
     example_input: str
     example_output: str
+    is_diff: bool = False
 
 
 MODES: dict[str, Mode] = {
@@ -26,6 +27,44 @@ MODES: dict[str, Mode] = {
         ),
         example_input="um so like i think we should uh go with option two right",
         example_output="I think we should go with option two.",
+    ),
+    "clean_fast": Mode(
+        description=(
+            "Faster alternative to 'clean': Gemma outputs only the find/replace "
+            "edits needed (filler removal, grammar/capitalization fixes) instead "
+            "of regenerating the whole transcript; edits are applied in Python."
+        ),
+        instruction=(
+            "Find the filler words, stutters, false starts, and grammar/"
+            "capitalization mistakes in this raw speech transcript, and output "
+            "the minimal find/replace edits needed to fix them. Do not rewrite "
+            "or rephrase anything that is already correct."
+        ),
+        format_rules=(
+            "- Output ONLY a JSON array of edit objects, nothing else — no "
+            "markdown code fences, no commentary before or after.\n"
+            '- Each object has exactly two string fields: "find" and "replace".\n'
+            '- "find" MUST be an exact, verbatim substring copied character-for-'
+            "character from the transcript — never a paraphrase.\n"
+            "- Only include edits for filler words, stutters, false starts, or "
+            "clear grammar/capitalization mistakes.\n"
+            "- Do NOT include an edit for any part of the transcript that is "
+            "already correct.\n"
+            "- Do NOT omit or substitute any specific numbers, names, or version "
+            "identifiers — those are never something to edit.\n"
+            '- Do NOT ever add, remove, or change a negation word ("not", "n\'t", '
+            '"never", "no", "none") — if an edit\'s \"find\" span contains a '
+            'negation word, that same negation word must appear unchanged, '
+            "word-for-word, in \"replace\" too.\n"
+            "- If no edits are needed, output exactly: []"
+        ),
+        example_input="um so like i think we should uh go with option two right",
+        example_output=(
+            '[{"find": "um so like i think", "replace": "I think"}, '
+            '{"find": " uh go", "replace": " go"}, '
+            '{"find": "two right", "replace": "two."}]'
+        ),
+        is_diff=True,
     ),
     "summary": Mode(
         description="Concise summary (2-3 sentences) of what was discussed.",

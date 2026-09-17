@@ -81,7 +81,13 @@ The Whisper model loads once at startup (not per-request).
   rules. Returns the raw transcript plus the LLM-processed output.
 
   Modes:
-  - `clean` (default) — fix punctuation/grammar, remove filler words.
+  - `clean` (default) — fix punctuation/grammar, remove filler words. Gemma
+    rewrites the whole transcript, so latency scales with transcript length.
+  - `clean_fast` — same result as `clean`, but Gemma outputs only the
+    find/replace edits needed instead of the whole transcript, applied in
+    Python; meaningfully faster since generation time is dominated by output
+    length, not input length. Edits are verified before being applied (must
+    match the original text verbatim, and can't add/remove a negation word).
   - `summary` — concise 2-3 sentence summary of what was discussed.
   - `action_items` — bullet list of action items (or `None`).
   - `decisions` — bullet list of decisions that were made (or `None`).
@@ -107,9 +113,9 @@ python -m app.dictation.app
 
 Press the hotkey (`ctrl+alt+space` by default) to start recording — a small
 red bar appears at the bottom of the screen. Press it again to stop; the
-bar turns amber while Whisper transcribes and Gemma (`clean` mode) tidies
-the result, then the cleaned text is automatically pasted into whatever
-text field currently has focus, in any application.
+bar turns amber while Whisper transcribes and Gemma (`clean_fast` mode)
+tidies the result, then the cleaned text is automatically pasted into
+whatever text field currently has focus, in any application.
 
 Because cleanup runs through Gemma, **Ollama must be running** with the
 configured model pulled, same as the FastAPI server. Expect ~9-12 seconds
