@@ -1,10 +1,27 @@
 # Voice Engine
 
-A local voice intelligence pipeline: speech in, structured/cleaned text out.
-It runs entirely on your own machine — no audio or transcript leaves your
-network — using [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
-for speech-to-text and a local [Ollama](https://ollama.com) model (Gemma 4B)
-for language processing.
+A voice-to-text intelligence engine that runs entirely on a local machine —
+no audio or transcript ever leaves the network. Speech goes in through
+GPU-accelerated Whisper transcription, then through a local LLM (Gemma, via
+Ollama) that turns the raw transcript into whatever's actually useful: a
+cleaned-up version, a summary, action items, decisions, or key quotes.
+
+**Highlights:**
+- **Two-stage local pipeline**: [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+  (CUDA) for speech-to-text, feeding directly into a local
+  [Ollama](https://ollama.com)-hosted Gemma model for language processing —
+  no cloud APIs, no data leaving the machine.
+- **Prompt engineering for a small, instruction-weak model**: 5 output modes
+  (clean / summary / action items / decisions / key quotes), each with a
+  tightly constrained prompt (instruction sandwiched at both ends, explicit
+  "do NOT" rules, a worked example) to keep a 4B-parameter model on-format.
+- **A hotkey dictation tool** (`app/dictation/`) built on the same pipeline:
+  press a global hotkey to record from anywhere on the machine, and the
+  cleaned-up transcript auto-pastes into whatever text field currently has
+  focus — in any application, system-wide.
+- **Windows/CUDA plumbing solved from scratch**: `app/dll_fix.py` resolves
+  the pip-installed CUDA DLL paths dynamically so GPU transcription works
+  out of the box on Windows, without manual `PATH` setup.
 
 ## Pipeline
 
